@@ -79,12 +79,16 @@ typedef struct {
     string_send[512],
     
     nom_utilisateur[50],
+   
+    message[562],
     
     ipC[16];
     
     const gchar * test42;
     
     gboolean * connected,* is_server;
+    
+    gint note;
     
 } ChatUI;
 
@@ -112,6 +116,9 @@ void enter_username();
 
 void send_entered_text();
 
+void end_session();
+
+void save_mark();
 
 
 ChatUI app;
@@ -158,11 +165,11 @@ int main(int argc,char *argv[])
     
     
     
-    app.button  = gtk_button_new_with_label ("RED Button");
+    app.button  = gtk_button_new_with_label ("Terminer Session");
     
     app.button2 = gtk_button_new_with_label ("Demarrer Session");
     
-    app.button3 = gtk_button_new_with_label ("Terminer Session");
+    app.button3 = gtk_button_new_with_label ("Sauvegarde Fichier");
     
     
     
@@ -234,7 +241,7 @@ int main(int argc,char *argv[])
     
     g_signal_connect (G_OBJECT (app.button), "clicked",
                       
-                      G_CALLBACK (enter_socket_text),
+                      G_CALLBACK (end_session),
                       
                       NULL);
     
@@ -288,7 +295,7 @@ void enter_text(){
     
     
     
-    //    if (app.connected) {
+    if (app.connected) {
     
     
     
@@ -296,7 +303,7 @@ void enter_text(){
     
     
     
-    enter_socket_text("\n\0");
+    // enter_socket_text("\n\0");
     
     enter_socket_text(app.nom_utilisateur);
     
@@ -312,7 +319,7 @@ void enter_text(){
     
     //        gtk_text_buffer_get_iter_at_offset(app.buffer,&app.end,-1);
     
-    gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark);
+    gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark); // Initialise l'itérateur 'end' a 'mark' ( Position du curseur -> Fin du buffer )
     
     //        gtk_text_buffer_get_iter_at_line(app.buffer,&app.end,0);
     
@@ -320,19 +327,19 @@ void enter_text(){
     
     //        gtk_text_buffer_get_bounds (app.buffer, &app.start, &app.end);
     
-    gtk_text_buffer_insert (app.buffer, &app.end, app.test42, -1);
+    gtk_text_buffer_insert (app.buffer, &app.end, app.test42, -1); // Ajoute le 'test42' dans le 'buffer' a l'emplacement de 'end' ( Fin du buffer ) 
     
     //gtk_text_buffer_get_end_iter (app.buffer,app.end);
     
-    //gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
+    gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
-    //        enter_socket_text("\n\0");
+    enter_socket_text("\n\0");
     
-    
+    enter_socket_text("\n\0");
     
     //        gtk_text_buffer_insert (app.buffer, &app.end, app.test42, sizeof(app.buffer));
     
-    
+    //enter_username();
     
     send_entered_text();
     
@@ -342,11 +349,11 @@ void enter_text(){
     
     //                gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(windowIO->textview), app.mark);
     
-    //    }
+    }
     
     
     
-    gtk_entry_set_text(GTK_ENTRY(windowIO->entry), "");
+    gtk_entry_set_text(GTK_ENTRY(windowIO->entry), ""); // Vide le champs
     
     
     
@@ -400,7 +407,7 @@ void enter_socket_text(char * data){
     
     gtk_text_buffer_insert (app.buffer, &app.end, text, -1);
     
-    //  gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
+    gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
     //    gtk_text_buffer_get_end_iter (app.buffer,app.end);
     
@@ -450,11 +457,11 @@ void open_file(){
             
         case GTK_RESPONSE_ACCEPT:
             
-            filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER ( dialog ));
+            filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER ( dialog )); // Sélectionne le dossier
             
-            g_file_get_contents(filename, &contents, NULL , NULL);
+            g_file_get_contents(filename, &contents, NULL , NULL); // Alloue l'espace mémoire nécessaire a 'contents' pour contenir 'filename'
             
-            buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview));
+            buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview)); // Nom du fichier initialisé par l'utilisateur
             
             gtk_text_buffer_set_text(buffer, contents, -1);
             
@@ -480,8 +487,10 @@ void open_file(){
 
 void save_file(){
     
-    
-    
+    if (app.is_server) {
+        save_mark(); // 
+    }
+        
     GtkTextBuffer * buffer = 0;
     
     GtkWidget *dialog;
@@ -514,7 +523,7 @@ void save_file(){
     
     
     
-    if (res == GTK_RESPONSE_APPLY)
+    if (res == GTK_RESPONSE_APPLY && app.is_server)
         
     {
         
@@ -538,7 +547,7 @@ void save_file(){
         
     }
     
-    
+    app.connected = FALSE;
     
     gtk_widget_destroy (dialog);
     
@@ -686,8 +695,6 @@ void start_session(){
         
         printf("Cancelled out");
         
-        //gtk_widget_destroy(dialog);
-        
     }    gtk_widget_destroy(dialog);
     
 }
@@ -704,7 +711,7 @@ void client(){
     
     /* Secure glib */
     
-    if( ! g_thread_supported() )
+    /*if( ! g_thread_supported() )
         
         g_thread_init( NULL );
     
@@ -712,7 +719,7 @@ void client(){
     
     GError    *error = NULL;
     
-    GThread * thread;
+    GThread * thread;*/
     
     struct sockaddr_in cliaddr;
     
@@ -758,27 +765,13 @@ void client(){
     
     
     
-    thread = g_thread_create( timeout_read_2, windowIO,
-                             
-                             TRUE, &error );
+    //thread = g_thread_create( timeout_read_2, windowIO,
+    
+    //                         TRUE, &error );
     
     
     
-    //    timeout_read_2();
-    
-    
-    
-    if (app.connected == FALSE) {
-        
-        close(connection_handle);
-        
-        app.connected = FALSE;
-        
-        printf("socket fermé");
-        
-    }else
-        
-        printf("attenzione");
+    timeout_read_2();
     
 }
 
@@ -878,27 +871,11 @@ void server(){
     
     
     
-    thread = g_thread_create( timeout_read_2, windowIO,
-                             
-                             TRUE, &error );
+    //thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
     
-    //    timeout_read_2();
+    timeout_read_2();
     
-    
-    
-    if (app.connected == FALSE) {
-        
-        close(connection_handle);
-        
-        close(serverSock);
-        
-        app.connected = FALSE;
-        
-        printf("socket fermé");
-        
-    }else
-        
-        printf("Attention je suis pas fermé");
+    close(serverSock);
     
 }
 
@@ -906,11 +883,15 @@ void server(){
 
 void send_entered_text(){
     
-    send(connection_handle, app.nom_utilisateur, sizeof(app.nom_utilisateur), 0);
+    strcat(app.message, app.nom_utilisateur);
     
-    send(connection_handle, app.string_send, sizeof(app.string_send), 0);
+    strcat(app.message, "\n");
     
-    memset(app.string_send,'\0',512);
+    strcat(app.message, app.string_send);
+    
+    send(connection_handle, app.message, sizeof(app.message), 0);
+    
+    memset(app.message,'\0',562);
     
 }
 
@@ -919,25 +900,25 @@ void send_entered_text(){
 void timeout_read_2(){
     
     
-    
-    int exit_chat_cli;
-    
     do{
         
         
         
-        read(connection_handle,app.string_read,sizeof(app.string_read));
+        if(read(connection_handle,app.string_read,sizeof(app.string_read)) != -1){
         
-        exit_chat_cli = strcmp(app.string_read, "BYE");
+            enter_socket_text(app.string_read);
         
-        enter_socket_text(app.string_read);
+            memset(app.string_read,'\0',512);
         
-        memset(app.string_read,'\0',512);
+            enter_socket_text("\n\0");
         
-        enter_socket_text("\n\0");
+        }
+        else
+            app.connected = FALSE;
         
-    }while(exit_chat_cli != 0);
+    }while(app.connected != FALSE);
     
+    printf("Sortie boucle do");
 }
 
 void save_username(){
@@ -958,16 +939,68 @@ void enter_username(){
     
     memset(tmp_username,'\0',50);
     
-    strcat(tmp_username, " \n");
-    
     strcat(tmp_username, app.nom_utilisateur);
     
     strcat(tmp_username, "\n");
     
     strcpy(app.nom_utilisateur, tmp_username);
     
-    printf("%s",app.nom_utilisateur);
+}
+
+void save_mark(){
+    
+    GtkWidget *dialog2;
+    
+    GtkWidget *entry;
+    
+    GtkWidget *content_area;
+    
+    GtkWidget *label;
+    
+    dialog2 = gtk_dialog_new();
+    
+    gtk_dialog_add_button(GTK_DIALOG(dialog2), "OK", TRUE);
+    
+    gtk_dialog_add_button(GTK_DIALOG(dialog2), "CANCEL", FALSE);
     
     
     
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog2));
+    
+    entry  = gtk_entry_new();
+    
+    label  = gtk_label_new("Quel note attribué ?");
+    
+    
+    gtk_container_add(GTK_CONTAINER(content_area), label);
+    
+    gtk_container_add(GTK_CONTAINER(content_area), entry );
+    
+    
+    gtk_widget_show_all(dialog2);
+    
+    
+    gtk_dialog_run(GTK_DIALOG(dialog2));
+        
+    app.note = gtk_entry_get_text(GTK_ENTRY(entry));
+
+    enter_socket_text(app.note);
+    
+    gtk_widget_destroy(dialog2);
+}
+
+/* ********************************************* end_session ****************************************** */
+
+void end_session(){
+    if( ! g_thread_supported() )
+        g_thread_init( NULL );
+    
+    GError    *error = NULL;
+    
+    GThread * thread;
+    thread = g_thread_create( close, connection_handle,
+                             TRUE, &error );
+    app.connected = FALSE;
+    printf("connected to FALSE");
+    //gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), app.buffer);
 }
