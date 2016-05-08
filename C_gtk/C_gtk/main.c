@@ -54,6 +54,8 @@ typedef struct {
     
     * button3,
     
+    //* button4,
+    
     * chat_space,
     
     * chat_read_space,
@@ -72,7 +74,9 @@ typedef struct {
     
     * nom_client,
     
-    * ip;
+    * ip,
+    
+    * note;
     
     char string_read[512],
     
@@ -87,8 +91,6 @@ typedef struct {
     const gchar * test42;
     
     gboolean * connected,* is_server;
-    
-    gint note;
     
 } ChatUI;
 
@@ -127,7 +129,7 @@ InputOutput * windowIO;
 
 int connection_handle;
 
-
+/* ********************************************* main ****************************************** */
 
 int main(int argc,char *argv[])
 
@@ -171,6 +173,7 @@ int main(int argc,char *argv[])
     
     app.button3 = gtk_button_new_with_label ("Sauvegarde Fichier");
     
+    //app.button4 = gtk_button_new_with_label ("Saisir Note");
     
     
     app.scrolled_window   = gtk_scrolled_window_new(NULL, NULL);
@@ -213,6 +216,8 @@ int main(int argc,char *argv[])
     
     gtk_box_pack_start(GTK_BOX(app.chat_right_column), app.button3, FALSE, FALSE, 10);
     
+    //gtk_box_pack_start(GTK_BOX(app.chat_right_column), app.button4, FALSE, FALSE, 20);
+    
     gtk_box_pack_end  (GTK_BOX(app.chat_right_column), app.button,  FALSE, FALSE, 25);
     
     
@@ -224,33 +229,28 @@ int main(int argc,char *argv[])
     gtk_container_add (GTK_CONTAINER(app.chat), app.chat_space);
     
     
+    /*g_signal_connect (G_OBJECT (app.button4), "clicked",
+                      G_CALLBACK (save_mark),
+                      NULL);*/
+    
     
     g_signal_connect (G_OBJECT (app.button3), "clicked",
-                      
                       G_CALLBACK (save_file),
-                      
                       NULL);
-    
     
     
     g_signal_connect (G_OBJECT (app.button2), "clicked",
-                      
                       G_CALLBACK (start_session),
-                      
                       NULL);
+    
     
     g_signal_connect (G_OBJECT (app.button), "clicked",
-                      
                       G_CALLBACK (end_session),
-                      
                       NULL);
-    
     
     
     g_signal_connect (windowIO->entry, "activate",
-                      
                       G_CALLBACK (enter_text),
-                      
                       NULL);
     
     
@@ -271,39 +271,15 @@ int main(int argc,char *argv[])
     
 }
 
-
+/* ********************************************* enter_text ****************************************** */
 
 void enter_text(){
     
     app.mark = gtk_text_buffer_get_insert (app.buffer);
     
-    
-    
-    //enter_username();
-    
-    
-    
-    
-    
-    /* Insert newline (only if there's already text in the buffer). */
-    
-    //    if (gtk_text_buffer_get_char_count(app.buffer)){
-    
-    //        gtk_text_buffer_insert (app.buffer, &app.end, "\n", 1);
-    
-    //    }
-    
-    
-    
     if (app.connected) {
     
-    
-    
     app.test42 = gtk_entry_get_text (GTK_ENTRY (windowIO->entry));
-    
-    
-    
-    // enter_socket_text("\n\0");
     
     enter_socket_text(app.nom_utilisateur);
     
@@ -313,23 +289,9 @@ void enter_text(){
     
     strcpy(app.string_send, app.test42);
     
-    //        gtk_text_buffer_get_end_iter (app.buffer,&app.end);
-    
-    //gtk_text_buffer_create_mark(app.buffer, app.mark, &app.end, FALSE);
-    
-    //        gtk_text_buffer_get_iter_at_offset(app.buffer,&app.end,-1);
-    
     gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark); // Initialise l'itérateur 'end' a 'mark' ( Position du curseur -> Fin du buffer )
     
-    //        gtk_text_buffer_get_iter_at_line(app.buffer,&app.end,0);
-    
-    //        gtk_text_buffer_get_end_iter (app.buffer,&app.end);
-    
-    //        gtk_text_buffer_get_bounds (app.buffer, &app.start, &app.end);
-    
     gtk_text_buffer_insert (app.buffer, &app.end, app.test42, -1); // Ajoute le 'test42' dans le 'buffer' a l'emplacement de 'end' ( Fin du buffer ) 
-    
-    //gtk_text_buffer_get_end_iter (app.buffer,app.end);
     
     gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
@@ -337,17 +299,7 @@ void enter_text(){
     
     enter_socket_text("\n\0");
     
-    //        gtk_text_buffer_insert (app.buffer, &app.end, app.test42, sizeof(app.buffer));
-    
-    //enter_username();
-    
     send_entered_text();
-    
-    
-    
-    //gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(windowIO->textview), &app.end, 0.0, FALSE, 1.0,1.0);
-    
-    //                gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(windowIO->textview), app.mark);
     
     }
     
@@ -359,69 +311,23 @@ void enter_text(){
     
 }
 
-
+/* ********************************************* enter_socket_text ****************************************** */
 
 void enter_socket_text(char * data){
     
-    
-    
     app.mark = gtk_text_buffer_get_insert (app.buffer);
-    
-    
     
     const gchar   * text = (gchar * )data;
     
-    
-    
-    //app.buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview));
-    
-    //    text = (gchar * )data;
-    
-    //    app.mark = gtk_text_buffer_get_insert (app.buffer);
-    
-    //    gtk_text_buffer_create_mark(app.buffer, app.mark, &app.end, TRUE);
-    
     gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark);
-    
-    
-    
-    //    gtk_text_buffer_get_iter_at_offset(app.buffer,&app.end,-1);
-    
-    //
-    
-    //    if (gtk_text_buffer_get_char_count(app.buffer)){
-    
-    //        gtk_text_buffer_insert (app.buffer, &app.end, "\n \n", 1);
-    
-    //    }
-    
-    //    qgtk_text_buffer_get_end_iter (app.buffer,&app.end);
-    
-    //    gtk_text_buffer_get_iter_at_line(app.buffer,&app.end,0);
-    
-    //    gtk_text_buffer_get_end_iter (app.buffer,&app.end);
-    
-    //    gtk_text_buffer_get_bounds (app.buffer, &app.start, &app.end);
-    
-    //    gtk_text_buffer_get_end_iter (app.buffer,app.end);
     
     gtk_text_buffer_insert (app.buffer, &app.end, text, -1);
     
     gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
-    //    gtk_text_buffer_get_end_iter (app.buffer,app.end);
-    
-    
-    
-    //    gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
-    
-    //        gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(windowIO->textview), app.mark);
-    
 }
 
-
-
-
+/* ********************************************* open_file ****************************************** */
 
 void open_file(){
     
@@ -481,14 +387,12 @@ void open_file(){
     
 }
 
-
-
-
+/* ********************************************* save_file ****************************************** */
 
 void save_file(){
     
     if (app.is_server) {
-        save_mark(); // 
+        save_mark(); 
     }
         
     GtkTextBuffer * buffer = 0;
@@ -555,7 +459,7 @@ void save_file(){
     
 }
 
-
+/* ********************************************* start_session ****************************************** */
 
 void start_session(){
     
@@ -699,7 +603,7 @@ void start_session(){
     
 }
 
-
+/* ********************************************* client ****************************************** */
 
 void client(){
     
@@ -711,7 +615,7 @@ void client(){
     
     /* Secure glib */
     
-    /*if( ! g_thread_supported() )
+    if( ! g_thread_supported() )
         
         g_thread_init( NULL );
     
@@ -719,7 +623,7 @@ void client(){
     
     GError    *error = NULL;
     
-    GThread * thread;*/
+    GThread * thread;
     
     struct sockaddr_in cliaddr;
     
@@ -765,15 +669,15 @@ void client(){
     
     
     
-    //thread = g_thread_create( timeout_read_2, windowIO,
-    
-    //                         TRUE, &error );
+    thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
     
     
     
-    timeout_read_2();
+    //timeout_read_2();
     
 }
+
+/* ********************************************* server ****************************************** */
 
 void server(){
     
@@ -859,26 +763,31 @@ void server(){
         
     }
     
-    else
+    else{
         
         printf("\n now connected to %s\n", inet_ntoa(cliinfo.sin_addr));
+    }
     
+    printf("%d \n",app.connected);
     app.connected = TRUE;
-    
+    printf("Connected to TRUE");
+    printf("%d",app.connected);
     
     
     listen(connection_handle, 1);
     
     
     
-    //thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
+    thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
     
-    timeout_read_2();
+    //timeout_read_2();
     
     close(serverSock);
     
 }
 
+
+/* ********************************************* send_entered_text ****************************************** */
 
 
 void send_entered_text(){
@@ -895,6 +804,8 @@ void send_entered_text(){
     
 }
 
+
+/* ********************************************* timeout_read_2 ****************************************** */
 
 
 void timeout_read_2(){
@@ -933,6 +844,8 @@ void save_username(){
     
 }
 
+/* ********************************************* enter_username ****************************************** */
+
 void enter_username(){
     
     char tmp_username[50];
@@ -946,6 +859,8 @@ void enter_username(){
     strcpy(app.nom_utilisateur, tmp_username);
     
 }
+
+/* ********************************************* save_mark ****************************************** */
 
 void save_mark(){
     
@@ -983,15 +898,22 @@ void save_mark(){
     gtk_dialog_run(GTK_DIALOG(dialog2));
         
     app.note = gtk_entry_get_text(GTK_ENTRY(entry));
-
-    enter_socket_text(app.note);
+    
+    char* grade = (char*) app.note;
+    
+    enter_socket_text(grade);
     
     gtk_widget_destroy(dialog2);
+    
+    app.connected = FALSE;
 }
+
 
 /* ********************************************* end_session ****************************************** */
 
+
 void end_session(){
+    app.connected = FALSE;
     if( ! g_thread_supported() )
         g_thread_init( NULL );
     
@@ -1000,7 +922,14 @@ void end_session(){
     GThread * thread;
     thread = g_thread_create( close, connection_handle,
                              TRUE, &error );
-    app.connected = FALSE;
     printf("connected to FALSE");
-    //gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), app.buffer);
+    gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), '\0');
+    strcpy(app.nom_utilisateur, '\0');
 }
+
+/*
+ Les problèmes a corriger :
+    - fermeture de socket
+    - impossible reçevoir de message après une reconnexion
+    -
+*/
