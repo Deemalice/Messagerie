@@ -90,7 +90,9 @@ typedef struct {
     
     const gchar * test42;
     
-    gboolean * connected,* is_server;
+    int serverSock, nbCar;
+    
+    gboolean * connected,* is_server,* finish;
     
 } ChatUI;
 
@@ -138,6 +140,8 @@ int main(int argc,char *argv[])
     app.connected = FALSE;
     
     app.is_server = FALSE;
+    
+    app.finish = FALSE;
     
     windowIO = g_slice_new (InputOutput);
     
@@ -254,24 +258,13 @@ int main(int argc,char *argv[])
                       NULL);
     
     
-    
-    app.buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview));
-    
-    
-    
     gtk_widget_show_all(app.chat);
-    
-    
-    
     gtk_main();
-    
     return 0;
-    
-    
-    
 }
 
-/* ********************************************* enter_text ****************************************** */
+/* ********************************************* enter_text ****************************************** 
+Ajoute sur la zone de chat les texte écrit */
 
 void enter_text(){
     
@@ -280,7 +273,7 @@ void enter_text(){
     if (app.connected) {
     
     app.test42 = gtk_entry_get_text (GTK_ENTRY (windowIO->entry));
-    
+        
     enter_socket_text(app.nom_utilisateur);
     
     enter_socket_text("\n\0");
@@ -290,16 +283,32 @@ void enter_text(){
     strcpy(app.string_send, app.test42);
     
     gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark); // Initialise l'itérateur 'end' a 'mark' ( Position du curseur -> Fin du buffer )
+        
+    gtk_text_buffer_get_end_iter(app.buffer, &app.end);
+        
+    //gtk_text_buffer_get_iter_at_line (app.buffer, &app.end, 0);
+        
+    gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(windowIO->textview),app.mark);
     
     gtk_text_buffer_insert (app.buffer, &app.end, app.test42, -1); // Ajoute le 'test42' dans le 'buffer' a l'emplacement de 'end' ( Fin du buffer ) 
+        
+     //gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
-    gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
+    enter_socket_text("\n\n\0");
     
-    enter_socket_text("\n\0");
-    
-    enter_socket_text("\n\0");
+    /*if( ! g_thread_supported() )
+        g_thread_init( NULL );
+        
+    GError    *error = NULL;
+        
+    GThread * thread;
+    thread = g_thread_create( send_entered_text, NULL,
+                                TRUE, &error );*/
+
     
     send_entered_text();
+    
+    // printf("%u\n",gtk_text_buffer_get_char_count(app.buffer));
     
     }
     
@@ -311,19 +320,26 @@ void enter_text(){
     
 }
 
-/* ********************************************* enter_socket_text ****************************************** */
+/* ***************************************** enter_socket_text ******************************************
+Ajoute sur la zone de chat les texte reçus */
 
 void enter_socket_text(char * data){
     
     app.mark = gtk_text_buffer_get_insert (app.buffer);
     
-    const gchar   * text = (gchar * )data;
+    const gchar   * text = (const gchar * )data;
     
     gtk_text_buffer_get_iter_at_mark (app.buffer, &app.end, app.mark);
     
+    gtk_text_buffer_get_end_iter(app.buffer, &app.end);
+    
+    //gtk_text_buffer_get_iter_at_line (app.buffer, &app.end, 0);
+    
+    gtk_text_view_scroll_mark_onscreen (GTK_TEXT_VIEW(windowIO->textview),app.mark);
+    
     gtk_text_buffer_insert (app.buffer, &app.end, text, -1);
     
-    gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
+    //gtk_text_view_scroll_to_mark(GTK_TEXT_VIEW(windowIO->textview), app.mark, 0.0, FALSE, 1.0,1.0);
     
 }
 
@@ -427,7 +443,7 @@ void save_file(){
     
     
     
-    if (res == GTK_RESPONSE_APPLY && app.is_server)
+    if (res == GTK_RESPONSE_APPLY)
         
     {
         
@@ -447,30 +463,31 @@ void save_file(){
         
         g_free(contents);
         
-        
+        app.connected = FALSE;
         
     }
     
-    app.connected = FALSE;
+    if (GTK_STOCK_CANCEL) {
+        app.connected = TRUE;
+    }
     
     gtk_widget_destroy (dialog);
-    
-    
     
 }
 
 /* ********************************************* start_session ****************************************** */
 
 void start_session(){
+    //gtk_text_buffer_get_iter_at_line (app.buffer, &app.start, 0);
+    gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), NULL);
+    //gtk_text_buffer_delete (app.buffer, &app.start, &app.end);
+     memset(app.message,'\0',562);
     
     /* Secure glib */
     
     if( ! g_thread_supported() )
         
         g_thread_init( NULL );
-    
-    
-    
     
     
     GError    *error = NULL;
@@ -487,7 +504,7 @@ void start_session(){
     
     gint result;
     
-    
+    app.is_server = FALSE;
     
     memset(app.nom_utilisateur,'\0',50);
     
@@ -565,6 +582,12 @@ void start_session(){
             
             app.is_server = TRUE;
             
+            app.finish = FALSE;
+            
+            app.buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview));
+            
+            gtk_text_buffer_get_start_iter(app.buffer, &app.end);
+            
             gtk_widget_destroy(GTK_WIDGET(dialog));
             
             save_username();
@@ -574,8 +597,15 @@ void start_session(){
             thread = g_thread_create( server, windowIO,
                                      
                                      TRUE, &error );
+            //server();
             
         }else if (strcmp(app.nom_server, "N") == 0 || strcmp(app.nom_server, "n") == 0){
+            
+            app.finish = FALSE;
+            
+            app.buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (windowIO->textview));
+            
+            gtk_text_buffer_get_start_iter(app.buffer, &app.end);
             
             gtk_widget_destroy(GTK_WIDGET(dialog));
             
@@ -586,6 +616,8 @@ void start_session(){
             thread = g_thread_create(client, windowIO,
                                      
                                      TRUE, &error );
+            
+            //client();
             
         }else{
             
@@ -613,9 +645,9 @@ void client(){
     
     gdk_threads_leave();
     
-    /* Secure glib */
+    // Secure glib 
     
-    if( ! g_thread_supported() )
+    /*if( ! g_thread_supported() )
         
         g_thread_init( NULL );
     
@@ -623,7 +655,7 @@ void client(){
     
     GError    *error = NULL;
     
-    GThread * thread;
+    GThread * thread;*/
     
     struct sockaddr_in cliaddr;
     
@@ -669,11 +701,9 @@ void client(){
     
     
     
-    thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
+    //thread = g_thread_create( timeout_read_2, NULL, TRUE, &error );
     
-    
-    
-    //timeout_read_2();
+    timeout_read_2();
     
 }
 
@@ -689,9 +719,9 @@ void server(){
     
     
     
-    /* Secure glib */
+    // Secure glib
     
-    if( ! g_thread_supported() )
+    /*if( ! g_thread_supported() )
         
         g_thread_init( NULL );
     
@@ -699,11 +729,9 @@ void server(){
     
     GError    *error = NULL;
     
-    GThread * thread;
+    GThread * thread;*/
     
     
-    
-    int serverSock;
     
     struct sockaddr_in seraddr;
     
@@ -719,7 +747,7 @@ void server(){
     
     
     
-    if((serverSock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if((app.serverSock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         
     {
         
@@ -729,7 +757,7 @@ void server(){
         
     }
     
-    if(bind(serverSock, (struct sockaddr *)&seraddr, sizeof(seraddr)) < 0)
+    if(bind(app.serverSock, (struct sockaddr *)&seraddr, sizeof(seraddr)) < 0)
         
     {
         
@@ -739,7 +767,7 @@ void server(){
         
     }
     
-    if(listen(serverSock,1) < 0)
+    if(listen(app.serverSock,1) < 0)
         
     {
         
@@ -753,7 +781,7 @@ void server(){
     
     printf("Server initialized...");
     
-    if((connection_handle = accept(serverSock, (struct sockaddr *)&cliinfo, &csize)) < 0)
+    if((connection_handle = accept(app.serverSock, (struct sockaddr *)&cliinfo, &csize)) < 0)
         
     {
         
@@ -778,11 +806,12 @@ void server(){
     
     
     
-    thread = g_thread_create( timeout_read_2, windowIO, TRUE, &error );
+    //thread = g_thread_create( timeout_read_2, NULL, TRUE, &error );
     
-    //timeout_read_2();
+    timeout_read_2();
     
-    close(serverSock);
+    //close(serverSock);
+    
     
 }
 
@@ -792,16 +821,19 @@ void server(){
 
 void send_entered_text(){
     
-    strcat(app.message, app.nom_utilisateur);
+    if (app.connected){
+        
+        strcat(app.message, app.nom_utilisateur);
     
-    strcat(app.message, "\n");
+        strcat(app.message, "\n");
     
-    strcat(app.message, app.string_send);
+        strcat(app.message, app.string_send);
     
-    send(connection_handle, app.message, sizeof(app.message), 0);
+        send(connection_handle, app.message, sizeof(app.message), 0);
     
-    memset(app.message,'\0',562);
+        memset(app.message,'\0',562);
     
+    }
 }
 
 
@@ -816,16 +848,26 @@ void timeout_read_2(){
         
         
         if(read(connection_handle,app.string_read,sizeof(app.string_read)) != -1){
-        
+            
+            if (strcmp(app.string_read,"exit00") == 0){
+                strcpy(app.message, "exit00");
+                if (app.finish == FALSE)
+                    send(connection_handle, app.message, sizeof(app.message), 0);
+                app.connected = FALSE;
+            }
+            else{
+                
             enter_socket_text(app.string_read);
         
             memset(app.string_read,'\0',512);
         
             enter_socket_text("\n\0");
-        
+            }
         }
-        else
-            app.connected = FALSE;
+        else{
+            printf("Erreur lecture");
+            //app.connected = FALSE;
+        }
         
     }while(app.connected != FALSE);
     
@@ -913,23 +955,27 @@ void save_mark(){
 
 
 void end_session(){
-    app.connected = FALSE;
-    if( ! g_thread_supported() )
-        g_thread_init( NULL );
+    if(app.connected){
+        app.finish = TRUE;
+        strcpy(app.message, "exit00");
+        send(connection_handle, app.message, sizeof(app.message), 0);
+        app.connected = FALSE;
+        /*if( ! g_thread_supported() )
+            g_thread_init( NULL );
     
-    GError    *error = NULL;
+        GError    *error = NULL;
     
-    GThread * thread;
-    thread = g_thread_create( close, connection_handle,
-                             TRUE, &error );
-    printf("connected to FALSE");
-    gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), '\0');
-    strcpy(app.nom_utilisateur, '\0');
+        GThread * thread;
+        thread = g_thread_create( close, connection_handle,
+                             TRUE, &error );*/
+        close(connection_handle);
+        if(app.is_server){
+            close(app.serverSock);
+            printf("serveur fermer");
+        }
+        printf("connected to FALSE");
+    }
+    //gtk_text_buffer_delete (app.buffer, &app.start, &app.end);
+    //gtk_text_view_set_buffer(GTK_TEXT_VIEW(windowIO->textview), '\0');
+    //strcpy(app.nom_utilisateur, '\0');
 }
-
-/*
- Les problèmes a corriger :
-    - fermeture de socket
-    - impossible reçevoir de message après une reconnexion
-    -
-*/
